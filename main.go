@@ -29,9 +29,9 @@ func main() {
 		port = "8080" // Fallback for local testing
 	}
 
-	log.Printf("Camera server starting on http://localhost:%s\n", port)
+	log.Printf("Camera server starting on port %s\n", port)
 
-	err := http.ListenAndServe(port, mux)
+	err := http.ListenAndServe(":"+port, mux)
 	if err != nil {
 		log.Fatal(err)
 	}
