@@ -2,40 +2,45 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="icon" type="image/svg+xml" href="/src/assets/favicon.svg" />
         <meta
             name="viewport"
             content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
         />
-        <title>Zerocam</title>
+        <title>the camera of oo1 studio</title>
         <link rel="stylesheet" href="https://core.oo1.studio/outsync.css" />
     </head>
     <body
-        class="bg-white text-black dark:bg-black dark:text-white m-0 overflow-hidden select-none"
+        class="bg-white text-black dark:bg-black dark:text-white m-0 overflow-hidden select-none font-mono"
     >
         <!-- Main full-screen container -->
-        <!-- Removed justify-center so items align to top naturally -->
+        <!-- Added `landscape:flex-row` to switch direction when wide -->
         <main
-            class="w-dvw h-dvh p-(--padding) flex flex-col items-center rounded(--layer-corner-radius)"
+            class="w-dvw h-dvh p-(--padding) flex flex-col landscape:flex-row items-center rounded(--layer-corner-radius)"
         >
+            <!--
+                Added `landscape:w-auto landscape:h-full`
+                This ensures the square video fits the screen height in landscape
+                rather than overflowing by taking up the full screen width
+            -->
             <video
                 id="viewfinder"
                 autoplay
                 playsinline
                 muted
                 style="--layer: 1"
-                class="w-full shrink-0 aspect-3/4 bg-zinc-900 object-cover rounded-(--layer-corner-radius) transition-opacity duration-100"
+                class="w-full landscape:w-auto landscape:h-full shrink-0 aspect-square bg-zinc-900 object-cover rounded-(--layer-corner-radius) transition-opacity duration-100"
             ></video>
 
             <div
-                class="w-full cursor-pointer flex-1 flex items-center justify-center"
+                class="w-full landscape:h-full landscape:w-auto cursor-pointer flex-1 flex items-center justify-center"
             >
                 <div
                     id="capture-button"
                     style="--layer: 1"
-                    class="bg-(--highlight-color) text-(--highlight-contrast-color) rounded-(--layer-corner-radius) min-h-(--layer-min-height) w-fit px-(--layer-corner-radius) flex flex-col items-center justify-center"
+                    class="bg-(--highlight-color) text-(--highlight-contrast-color) rounded-(--layer-corner-radius) min-h-(--layer-min-height) min-w-[calc(var(--layer-min-height)*2)] px-(--layer-corner-radius) flex flex-col items-center justify-center transition-all duration-150 active:scale-90 active:opacity-80"
                 >
-                    tap to capture
+                    ------
                 </div>
             </div>
         </main>
