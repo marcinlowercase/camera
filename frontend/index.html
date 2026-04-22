@@ -37,7 +37,7 @@
                 <div
                     id="capture-button"
                     style="--layer: 1"
-                    class="relative overflow-hidden border dark:border-white border-transparent text-white rounded-(--layer-corner-radius) min-h-(--layer-min-height) min-w-[calc(var(--layer-min-height)*2)] px-(--layer-corner-radius) flex flex-col items-center justify-center transition-all duration-150 active:scale-90"
+                    class="relative overflow-hidden border dark:border-white/60 border-transparent text-white rounded-(--layer-corner-radius) min-h-(--layer-min-height) min-w-[calc(var(--layer-min-height)*2)] px-(--layer-corner-radius) flex flex-col items-center justify-center transition-all duration-150 active:scale-90"
                 >
                     <!-- 1. The live camera feed for the button -->
                     <video
@@ -56,7 +56,7 @@
                     <!-- 3. The text element that JS will animate -->
                     <span
                         id="capture-text"
-                        class="relative z-10 pointer-events-none"
+                        class="relative z-10 pointer-events-none transition-opacity duration-[calc(var(--animation-speed)*1ms)]"
                         >------</span
                     >
                 </div>

@@ -186,6 +186,7 @@ async function playStartupAnimation() {
     captureText.innerText = frame;
     await delay(frameDelay); // dynamically uses your CSS engine!
   }
+  captureText.style.opacity = "0.6";
 }
 
 // Boot up the camera and trigger the animation when the page first loads
