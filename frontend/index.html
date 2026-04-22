@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        />
+        <title>Zerocam</title>
+        <link rel="stylesheet" href="https://core.oo1.studio/outsync.css" />
+    </head>
+    <body
+        class="bg-white text-black dark:bg-black dark:text-white m-0 overflow-hidden select-none"
+    >
+        <!-- Main full-screen container -->
+        <!-- Removed justify-center so items align to top naturally -->
+        <main
+            class="w-dvw h-dvh p-(--padding) flex flex-col items-center rounded(--layer-corner-radius)"
+        >
+            <video
+                id="viewfinder"
+                autoplay
+                playsinline
+                muted
+                style="--layer: 1"
+                class="w-full shrink-0 aspect-3/4 bg-zinc-900 object-cover rounded-(--layer-corner-radius) transition-opacity duration-100"
+            ></video>
+
+            <div
+                class="w-full cursor-pointer flex-1 flex items-center justify-center"
+            >
+                <div
+                    id="capture-button"
+                    style="--layer: 1"
+                    class="bg-(--highlight-color) text-(--highlight-contrast-color) rounded-(--layer-corner-radius) min-h-(--layer-min-height) w-fit px-(--layer-corner-radius) flex flex-col items-center justify-center"
+                >
+                    tap to capture
+                </div>
+            </div>
+        </main>
+
+        <!-- Hidden canvas used for capturing the actual photo -->
+        <canvas id="photo-canvas" class="hidden"></canvas>
+
+        <script type="module" src="/src/main.ts"></script>
+    </body>
+</html>
