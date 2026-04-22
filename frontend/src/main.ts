@@ -8,6 +8,11 @@ const captureButton = document.getElementById(
   "capture-button",
 ) as HTMLDivElement;
 
+const buttonViewfinder = document.getElementById(
+  "button-viewfinder",
+) as HTMLVideoElement;
+const captureText = document.getElementById("capture-text") as HTMLSpanElement;
+
 // Pass the Vite-processed URL into the Audio object
 const shutterSound = new Audio(shutterAudioUrl);
 
@@ -18,6 +23,7 @@ function stopCamera() {
     // Loop through all audio/video tracks and tell the hardware to stop
     stream.getTracks().forEach((track) => track.stop());
     viewfinder.srcObject = null;
+    buttonViewfinder.srcObject = null;
   }
 }
 
@@ -35,6 +41,7 @@ async function startCamera() {
     });
 
     viewfinder.srcObject = stream;
+    buttonViewfinder.srcObject = stream;
   } catch (err: any) {
     console.error("Camera error:", err);
     if (err.name === "NotAllowedError" || err.name === "NotReadableError") {
@@ -170,13 +177,13 @@ async function playStartupAnimation() {
 
   // Type "camera" in (left to right)
   for (const frame of inFrames) {
-    captureButton.innerText = frame;
+    captureText.innerText = frame;
     await delay(frameDelay); // dynamically uses your CSS engine!
   }
 
   // Erase "camera" out (left to right)
   for (const frame of outFrames) {
-    captureButton.innerText = frame;
+    captureText.innerText = frame;
     await delay(frameDelay); // dynamically uses your CSS engine!
   }
 }

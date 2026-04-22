@@ -14,15 +14,10 @@
         class="bg-white text-black dark:bg-black dark:text-white m-0 overflow-hidden select-none font-mono"
     >
         <!-- Main full-screen container -->
-        <!-- Added `landscape:flex-row` to switch direction when wide -->
         <main
             class="w-dvw h-dvh p-(--padding) flex flex-col landscape:flex-row items-center rounded(--layer-corner-radius)"
         >
-            <!--
-                Added `landscape:w-auto landscape:h-full`
-                This ensures the square video fits the screen height in landscape
-                rather than overflowing by taking up the full screen width
-            -->
+            <!-- Main Viewfinder -->
             <video
                 id="viewfinder"
                 autoplay
@@ -35,12 +30,35 @@
             <div
                 class="w-full landscape:h-full landscape:w-auto cursor-pointer flex-1 flex items-center justify-center"
             >
+                <!--
+                    THE NEW BUTTON
+                    Removed bg color, added relative and overflow-hidden so the video stays inside the rounded corners!
+                -->
                 <div
                     id="capture-button"
                     style="--layer: 1"
-                    class="bg-(--highlight-color) text-(--highlight-contrast-color) rounded-(--layer-corner-radius) min-h-(--layer-min-height) min-w-[calc(var(--layer-min-height)*2)] px-(--layer-corner-radius) flex flex-col items-center justify-center transition-all duration-150 active:scale-90 active:opacity-80"
+                    class="relative overflow-hidden text-white rounded-(--layer-corner-radius) min-h-(--layer-min-height) min-w-[calc(var(--layer-min-height)*2)] px-(--layer-corner-radius) flex flex-col items-center justify-center transition-all duration-150 active:scale-90"
                 >
-                    ------
+                    <!-- 1. The live camera feed for the button -->
+                    <video
+                        id="button-viewfinder"
+                        autoplay
+                        playsinline
+                        muted
+                        class="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                    ></video>
+
+                    <!-- 2. The 30% black overlay to make text readable -->
+                    <div
+                        class="absolute inset-0 bg-black/60 pointer-events-none backdrop-blur-md"
+                    ></div>
+
+                    <!-- 3. The text element that JS will animate -->
+                    <span
+                        id="capture-text"
+                        class="relative z-10 pointer-events-none"
+                        >------</span
+                    >
                 </div>
             </div>
         </main>
