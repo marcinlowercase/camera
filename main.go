@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 )
 
 func main() {
@@ -22,7 +23,12 @@ func main() {
 	})
 
 	// 4. Start the server
-	port := ":8080"
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" // Fallback for local testing
+	}
+
 	log.Printf("Camera server starting on http://localhost%s\n", port)
 
 	err := http.ListenAndServe(port, mux)
