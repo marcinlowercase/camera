@@ -148,6 +148,7 @@ viewfinder.addEventListener("pointerup", takePicture);
 
 // --- NEW: The Text Animation Function ---
 async function playStartupAnimation() {
+  captureText.style.opacity = "1";
   const inFrames = ["c-----", "ca----", "cam---", "came--", "camer-", "camera"];
   const outFrames = [
     "-amera",
