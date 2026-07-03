@@ -35,7 +35,7 @@
                 <div
                     id="capture-button"
                     style="--layer: 1"
-                    class="relative overflow-hidden border dark:border-white/60 border-transparent text-white rounded-(--layer-corner-radius) h-(--layer-height) min-w-[calc(var(--layer-min-height)*2)] px-(--layer-corner-radius) flex flex-col items-center justify-center transition-all duration-150 active:scale-90 cursor-pointer"
+                    class="relative overflow-hidden text-white rounded-(--layer-corner-radius) h-(--layer-height) min-w-[calc(var(--layer-min-height)*2)] px-(--layer-corner-radius) flex flex-col items-center justify-center transition-all duration-150 active:scale-90 cursor-pointer"
                 >
                     <!-- 1. The live camera feed for the button -->
                     <video
@@ -43,7 +43,7 @@
                         autoplay
                         playsinline
                         muted
-                        class="absolute inset-0 w-full h-full object-cover pointer-events-none transition-all duration-100"
+                        class="absolute inset-0 w-full h-full object-cover pointer-events-none"
                     ></video>
 
                     <!-- 2. The 30% black overlay to make text readable -->
@@ -51,7 +51,12 @@
                         class="absolute inset-0 bg-black/60 pointer-events-none backdrop-blur-md"
                     ></div>
 
-                    <!-- 3. The text element that JS will animate -->
+                    <!-- 3. Absolute 2px border overlay drawn on top to hide any jagged video clip edges -->
+                    <div
+                        class="absolute inset-0 border-2 dark:border-white/60 border-transparent rounded-(--layer-corner-radius) pointer-events-none z-20"
+                    ></div>
+
+                    <!-- 4. The text element that JS will animate -->
                     <span
                         id="capture-text"
                         class="relative z-10 pointer-events-none transition-opacity duration-[calc(var(--animation-speed)*1ms)] opacity-60"
@@ -59,11 +64,11 @@
                     >
                 </div>
 
-                <!-- Flip Button (with lowercase text) -->
+                <!-- Flip Button (Updated to border-2 to match visual weight) -->
                 <div
                     id="flip-button"
                     style="--layer: 1"
-                    class="cursor-pointer border border-black/40 dark:border-white/60 rounded-(--layer-corner-radius) h-(--layer-height) px-(--layer-corner-radius) flex items-center justify-center transition-all duration-150 active:scale-90"
+                    class="cursor-pointer border-2 border-black/40 dark:border-white/60 rounded-(--layer-corner-radius) h-(--layer-height) px-(--layer-corner-radius) flex items-center justify-center transition-all duration-150 active:scale-90"
                 >
                     <span class="pointer-events-none opacity-60">flip</span>
                 </div>
