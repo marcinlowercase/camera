@@ -37,18 +37,18 @@
                     style="--layer: 1"
                     class="relative overflow-hidden text-white rounded-(--layer-corner-radius) h-(--layer-height) min-w-[calc(var(--layer-min-height)*2)] px-(--layer-corner-radius) flex flex-col items-center justify-center transition-all duration-150 active:scale-90 cursor-pointer"
                 >
-                    <!-- 1. The live camera feed for the button -->
+                    <!-- 1. The live camera feed, directly blurred and slightly scaled to keep edges clean -->
                     <video
                         id="button-viewfinder"
                         autoplay
                         playsinline
                         muted
-                        class="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                        class="absolute inset-0 w-full h-full object-cover pointer-events-none rounded-(--layer-corner-radius) filter blur-[8px] scale-[1.08] transition-all duration-100"
                     ></video>
 
-                    <!-- 2. The 30% black overlay to make text readable -->
+                    <!-- 2. The 60% black overlay (backdrop-blur-md removed to fix low-end phone bug) -->
                     <div
-                        class="absolute inset-0 bg-black/60 pointer-events-none backdrop-blur-md"
+                        class="absolute inset-0 bg-black/60 pointer-events-none rounded-(--layer-corner-radius)"
                     ></div>
 
                     <!-- 3. Absolute 2px border overlay drawn on top to hide any jagged video clip edges -->
