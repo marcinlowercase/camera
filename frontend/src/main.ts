@@ -115,7 +115,8 @@ async function updateCameraList() {
     videoDevices = devices.filter((d) => d.kind === "videoinput");
 
     if (videoDevices.length > 1) {
-      swapCameraButton.classList.remove("hidden");
+      // Re-enable in case it was previously disabled
+      swapCameraButton.classList.remove("opacity-40", "pointer-events-none");
 
       // Match the currently running track's ID to keep the active index accurate
       const activeTrack = rawStream?.getVideoTracks()[0];
@@ -133,7 +134,12 @@ async function updateCameraList() {
 
       updateSwapButtonText();
     } else {
-      swapCameraButton.classList.add("hidden");
+      // Exactly 1 or 0 cameras available - keep visible but disabled
+      swapCameraButton.classList.add("opacity-40", "pointer-events-none");
+      const swapText = swapCameraButton.querySelector("span");
+      if (swapText) {
+        swapText.innerText = "1/1";
+      }
     }
   } catch (err) {
     console.error("Failed to enumerate devices:", err);
@@ -201,7 +207,12 @@ async function startCamera() {
     }
   } finally {
     isCameraStarting = false;
-    swapCameraButton.classList.remove("opacity-40", "pointer-events-none");
+    // Only re-enable the button if there are actually multiple cameras to swap
+    if (videoDevices.length > 1) {
+      swapCameraButton.classList.remove("opacity-40", "pointer-events-none");
+    } else {
+      swapCameraButton.classList.add("opacity-40", "pointer-events-none");
+    }
   }
 }
 
