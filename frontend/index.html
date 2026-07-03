@@ -20,8 +20,9 @@
                     width: auto !important;
                     height: auto !important;
                     z-index: 30 !important;
+                    flex-direction: row !important;
                 }
-                #viewfinder {
+                #viewfinder-container {
                     width: 100% !important;
                     height: 100% !important;
                 }
@@ -35,82 +36,78 @@
         <main
             class="w-dvw h-dvh p-(--padding) flex flex-col landscape:flex-row items-center rounded(--layer-corner-radius) relative"
         >
-            <!-- Main Viewfinder -->
-            <video
-                id="viewfinder"
-                autoplay
-                playsinline
-                muted
-                style="--layer: 1"
-                class="w-full landscape:w-auto landscape:h-full shrink-0 aspect-square bg-zinc-900 object-cover rounded-(--layer-corner-radius) transition-all duration-100"
-            ></video>
+            <!-- Main Viewfinder Container -->
+            <div
+                id="viewfinder-container"
+                class="relative shrink-0 aspect-square w-full landscape:w-auto landscape:h-full overflow-hidden"
+            >
+                <video
+                    id="viewfinder"
+                    autoplay
+                    playsinline
+                    muted
+                    style="--layer: 1"
+                    class="w-full h-full object-cover transition-all duration-100 rounded-(--layer-corner-radius)"
+                ></video>
 
-            <!-- Buttons container (floats centered) -->
+                <!-- Swap Camera Button (Positioned at bottom-left corner of the preview) -->
+                <div
+                    id="swap-camera-button"
+                    style="--layer: 2"
+                    class="bottom-(--padding) left-(--padding) absolute z-20 cursor-pointer bg-black/60 backdrop-blur-md text-white border border-white/20 rounded-(--layer-corner-radius) h-(--layer-height) w-(--layer-height) aspect-square flex items-center justify-center transition-all duration-150 active:scale-95 opacity-40 pointer-events-none"
+                >
+                    <span
+                        class="pointer-events-none opacity-80 text-xs font-mono"
+                        >?/?</span
+                    >
+                </div>
+            </div>
+
+            <!-- Buttons container (floats centered with flip and capture in one row) -->
             <div
                 id="buttons-container"
-                class="w-full landscape:h-full landscape:w-auto flex flex-col gap-4 items-center justify-center flex-1"
+                class="w-full landscape:h-full landscape:w-auto flex flex-row gap-4 items-center justify-center flex-1"
             >
-                <!-- Inner layout box that stretches children evenly -->
+                <!-- Capture Button -->
                 <div
-                    class="flex flex-col gap-4 items-stretch min-w-[calc(var(--layer-min-height)*3.5)] max-w-full"
+                    id="capture-button"
+                    style="--layer: 1"
+                    class="relative overflow-hidden text-white rounded-(--layer-corner-radius) h-(--layer-height) min-w-[calc(var(--layer-min-height)*2)] px-(--layer-corner-radius) flex flex-col items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer"
                 >
-                    <!-- Row 1: Capture Button -->
+                    <!-- 1. The live camera feed, directly blurred and slightly scaled to keep edges clean -->
+                    <video
+                        id="button-viewfinder"
+                        autoplay
+                        playsinline
+                        muted
+                        class="absolute inset-0 w-full h-full object-cover pointer-events-none rounded-(--layer-corner-radius) filter blur-[8px] scale-[1.08] transition-all duration-100"
+                    ></video>
+
+                    <!-- 2. The 60% black overlay (backdrop-blur-md removed to fix low-end phone bug) -->
                     <div
-                        id="capture-button"
-                        style="--layer: 1"
-                        class="relative overflow-hidden text-white rounded-(--layer-corner-radius) h-(--layer-height) px-(--layer-corner-radius) flex flex-col items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer"
+                        class="absolute inset-0 bg-black/60 pointer-events-none rounded-(--layer-corner-radius)"
+                    ></div>
+
+                    <!-- 3. Absolute 2px border overlay drawn on top to hide any jagged video clip edges -->
+                    <div
+                        class="absolute inset-0 border-2 dark:border-white/60 border-transparent rounded-(--layer-corner-radius) pointer-events-none z-20"
+                    ></div>
+
+                    <!-- 4. The text element that JS will animate -->
+                    <span
+                        id="capture-text"
+                        class="relative z-10 pointer-events-none transition-opacity duration-[calc(var(--animation-speed)*1ms)] opacity-60"
+                        >------</span
                     >
-                        <!-- 1. The live camera feed, directly blurred and slightly scaled to keep edges clean -->
-                        <video
-                            id="button-viewfinder"
-                            autoplay
-                            playsinline
-                            muted
-                            class="absolute inset-0 w-full h-full object-cover pointer-events-none rounded-(--layer-corner-radius) filter blur-[8px] scale-[1.08] transition-all duration-100"
-                        ></video>
+                </div>
 
-                        <!-- 2. The 60% black overlay (backdrop-blur-md removed to fix low-end phone bug) -->
-                        <div
-                            class="absolute inset-0 bg-black/60 pointer-events-none rounded-(--layer-corner-radius)"
-                        ></div>
-
-                        <!-- 3. Absolute 2px border overlay drawn on top to hide any jagged video clip edges -->
-                        <div
-                            class="absolute inset-0 border-2 dark:border-white/60 border-transparent rounded-(--layer-corner-radius) pointer-events-none z-20"
-                        ></div>
-
-                        <!-- 4. The text element that JS will animate -->
-                        <span
-                            id="capture-text"
-                            class="relative z-10 pointer-events-none transition-opacity duration-[calc(var(--animation-speed)*1ms)] opacity-60"
-                            >------</span
-                        >
-                    </div>
-
-                    <!-- Row 2: Secondary Buttons (Flip and Swap) -->
-                    <div class="flex flex-row gap-4 items-center w-full">
-                        <!-- Flip Button -->
-                        <div
-                            id="flip-button"
-                            style="--layer: 1"
-                            class="flex-1 cursor-pointer border-2 border-black/40 dark:border-white/60 rounded-(--layer-corner-radius) h-(--layer-height) min-w-[calc(var(--layer-min-height)*1.5)] px-(--layer-corner-radius) flex items-center justify-center transition-all duration-150 active:scale-95"
-                        >
-                            <span class="pointer-events-none opacity-60"
-                                >flip</span
-                            >
-                        </div>
-
-                        <!-- Swap Camera Button (Starts loaded in state "?/?" and disabled) -->
-                        <div
-                            id="swap-camera-button"
-                            style="--layer: 1"
-                            class="flex-1 cursor-pointer border-2 border-black/40 dark:border-white/60 rounded-(--layer-corner-radius) h-(--layer-height) min-w-[calc(var(--layer-min-height)*1.5)] px-(--layer-corner-radius) flex items-center justify-center transition-all duration-150 active:scale-95 opacity-40 pointer-events-none"
-                        >
-                            <span class="pointer-events-none opacity-60"
-                                >?/?</span
-                            >
-                        </div>
-                    </div>
+                <!-- Flip Button -->
+                <div
+                    id="flip-button"
+                    style="--layer: 1"
+                    class="cursor-pointer border-2 border-black/40 dark:border-white/60 rounded-(--layer-corner-radius) h-(--layer-height) min-w-[calc(var(--layer-min-height)*1.5)] px-(--layer-corner-radius) flex items-center justify-center transition-all duration-150 active:scale-95"
+                >
+                    <span class="pointer-events-none opacity-60">flip</span>
                 </div>
             </div>
         </main>

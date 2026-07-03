@@ -333,12 +333,10 @@ flipButton.addEventListener("pointerup", async () => {
   const flipText = flipButton.querySelector("span");
 
   if (isMirrored) {
-    flipButton.classList.add("bg-neutral-200", "dark:bg-neutral-800");
     if (flipText) {
       await scrambleTransition(flipText, "pilf", 200);
     }
   } else {
-    flipButton.classList.remove("bg-neutral-200", "dark:bg-neutral-800");
     if (flipText) {
       await scrambleTransition(flipText, "flip", 200);
     }
