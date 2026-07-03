@@ -7,6 +7,7 @@ const canvas = document.getElementById("photo-canvas") as HTMLCanvasElement;
 const captureButton = document.getElementById(
   "capture-button",
 ) as HTMLDivElement;
+const flipButton = document.getElementById("flip-button") as HTMLDivElement;
 
 const buttonViewfinder = document.getElementById(
   "button-viewfinder",
@@ -16,15 +17,85 @@ const captureText = document.getElementById("capture-text") as HTMLSpanElement;
 // Pass the Vite-processed URL into the Audio object
 const shutterSound = new Audio(shutterAudioUrl);
 
-// --- Helper to fully stop the camera hardware ---
+// Keep track of states
+let isMirrored = false;
+let rawStream: MediaStream | null = null;
+let canvasStream: MediaStream | null = null;
+let animationFrameId: number | null = null;
+
+// Hidden elements for capturing and processing the stream
+const rawVideo = document.createElement("video");
+rawVideo.muted = true;
+rawVideo.playsInline = true;
+
+const streamCanvas = document.createElement("canvas");
+const streamCtx = streamCanvas.getContext("2d");
+
+// --- Helper to fully stop the camera hardware and processing loop ---
 function stopCamera() {
-  if (viewfinder.srcObject) {
-    const stream = viewfinder.srcObject as MediaStream;
-    // Loop through all audio/video tracks and tell the hardware to stop
-    stream.getTracks().forEach((track) => track.stop());
-    viewfinder.srcObject = null;
-    buttonViewfinder.srcObject = null;
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
   }
+
+  if (rawStream) {
+    rawStream.getTracks().forEach((track) => track.stop());
+    rawStream = null;
+  }
+
+  if (canvasStream) {
+    canvasStream.getTracks().forEach((track) => track.stop());
+    canvasStream = null;
+  }
+
+  rawVideo.srcObject = null;
+  viewfinder.srcObject = null;
+  buttonViewfinder.srcObject = null;
+}
+
+// Draw crop loop: extracts a 1:1 ratio frame and applies mirror transformation on-the-fly
+function drawLoop() {
+  if (!rawVideo.paused && !rawVideo.ended) {
+    const rawW = rawVideo.videoWidth;
+    const rawH = rawVideo.videoHeight;
+
+    if (rawW && rawH) {
+      const squareSize = Math.min(rawW, rawH);
+      const cropX = (rawW - squareSize) / 2;
+      const cropY = (rawH - squareSize) / 2;
+
+      // Ensure stream canvas dimensions match the cropped square size
+      if (streamCanvas.width !== squareSize) {
+        streamCanvas.width = squareSize;
+        streamCanvas.height = squareSize;
+      }
+
+      if (streamCtx) {
+        streamCtx.clearRect(0, 0, squareSize, squareSize);
+        streamCtx.save();
+
+        if (isMirrored) {
+          // Draw the stream mirrored
+          streamCtx.translate(squareSize, 0);
+          streamCtx.scale(-1, 1);
+        }
+
+        streamCtx.drawImage(
+          rawVideo,
+          cropX,
+          cropY,
+          squareSize,
+          squareSize,
+          0,
+          0,
+          squareSize,
+          squareSize,
+        );
+        streamCtx.restore();
+      }
+    }
+  }
+  animationFrameId = requestAnimationFrame(drawLoop);
 }
 
 async function startCamera() {
@@ -32,7 +103,7 @@ async function startCamera() {
   stopCamera();
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
+    rawStream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: "environment",
         aspectRatio: 1 / 1,
@@ -40,8 +111,19 @@ async function startCamera() {
       audio: false,
     });
 
-    viewfinder.srcObject = stream;
-    buttonViewfinder.srcObject = stream;
+    rawVideo.srcObject = rawStream;
+    await rawVideo.play();
+
+    // Start running the loop that draws frames on our helper canvas
+    drawLoop();
+
+    // Capture the 1:1 stream from our canvas at 30fps
+    // @ts-ignore
+    canvasStream = streamCanvas.captureStream(30);
+
+    // Apply the perfectly square stream to the viewfinders
+    viewfinder.srcObject = canvasStream;
+    buttonViewfinder.srcObject = canvasStream;
   } catch (err: any) {
     console.error("Camera error:", err);
     if (err.name === "NotAllowedError" || err.name === "NotReadableError") {
@@ -64,8 +146,8 @@ document.addEventListener("visibilitychange", () => {
 });
 
 async function takePicture() {
-  // Ensure the camera has loaded its dimensions
-  if (!viewfinder.videoWidth || !viewfinder.videoHeight) {
+  // Ensure the stream is rendering
+  if (!streamCanvas.width || !streamCanvas.height) {
     console.warn("Camera not ready yet");
     return;
   }
@@ -80,34 +162,15 @@ async function takePicture() {
   viewfinder.style.opacity = "0.3";
   setTimeout(() => (viewfinder.style.opacity = "1"), 150);
 
-  // ---------------------------------------------------------
-  // THE SQUARE CROP MATH
-  // ---------------------------------------------------------
-  const rawWidth = viewfinder.videoWidth;
-  const rawHeight = viewfinder.videoHeight;
-  const squareSize = Math.min(rawWidth, rawHeight);
-
-  const cropX = (rawWidth - squareSize) / 2;
-  const cropY = (rawHeight - squareSize) / 2;
-
-  canvas.width = squareSize;
-  canvas.height = squareSize;
+  canvas.width = streamCanvas.width;
+  canvas.height = streamCanvas.height;
 
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
-  ctx.drawImage(
-    viewfinder,
-    cropX,
-    cropY,
-    squareSize,
-    squareSize,
-    0,
-    0,
-    squareSize,
-    squareSize,
-  );
-  // ---------------------------------------------------------
+  // The streamCanvas is already running live cropping and mirroring.
+  // Drawing it directly keeps the snapshot exactly identical to the preview.
+  ctx.drawImage(streamCanvas, 0, 0);
 
   const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
   const now = new Date();
@@ -142,11 +205,66 @@ async function takePicture() {
   }
 }
 
+// --- Text Scrambler Animation Helper for Flip Button ---
+async function scrambleTransition(
+  element: HTMLElement,
+  targetText: string,
+  durationMs: number = 300,
+) {
+  const glyphs = "abcdefghijklmnopqrstuvwxyz-";
+  const startLength = element.innerText.length;
+  const targetLength = targetText.length;
+  const maxLength = Math.max(startLength, targetLength);
+
+  const steps = 12;
+  const interval = durationMs / steps;
+
+  for (let step = 0; step <= steps; step++) {
+    let result = "";
+    const progress = step / steps;
+
+    for (let i = 0; i < maxLength; i++) {
+      // Gradually lock in correct characters from left to right as the animation progresses
+      const isResolved = i / maxLength < progress;
+
+      if (isResolved) {
+        if (i < targetLength) {
+          result += targetText[i];
+        }
+      } else {
+        // Scramble phase: insert random lowercase letters/dash
+        result += glyphs[Math.floor(Math.random() * glyphs.length)];
+      }
+    }
+    element.innerText = result;
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+  element.innerText = targetText;
+}
+
+// Flip action: toggles state, updates button style, and runs text scramble animation
+flipButton.addEventListener("pointerup", async () => {
+  isMirrored = !isMirrored;
+  const flipText = flipButton.querySelector("span");
+
+  if (isMirrored) {
+    flipButton.classList.add("bg-neutral-200", "dark:bg-neutral-800");
+    if (flipText) {
+      await scrambleTransition(flipText, "pilf", 200);
+    }
+  } else {
+    flipButton.classList.remove("bg-neutral-200", "dark:bg-neutral-800");
+    if (flipText) {
+      await scrambleTransition(flipText, "flip", 200);
+    }
+  }
+});
+
 // Attach capture events
 captureButton.addEventListener("pointerup", takePicture);
 viewfinder.addEventListener("pointerup", takePicture);
 
-// --- NEW: The Text Animation Function ---
+// --- The Original Text Frame-by-Frame Animation Function for Camera Button ---
 async function playStartupAnimation() {
   captureText.style.opacity = "1";
   const inFrames = ["c-----", "ca----", "cam---", "came--", "camer-", "camera"];
@@ -164,13 +282,12 @@ async function playStartupAnimation() {
   // 1. Read the styles currently applied to the capture button
   const buttonStyles = getComputedStyle(captureButton);
 
-  // 2. Extract `--layer-animation-speed` (which resolves to "250ms" because layer=1)
-  // If it's missing, fallback to `--animation-speed`, and if that's missing, fallback to "80ms"
+  // 2. Extract `--animation-speed`
   const rawSpeed =
     buttonStyles.getPropertyValue("--animation-speed").trim() || "80";
 
   console.log(`rawspeed ${rawSpeed}`);
-  // 3. parseInt automatically strips the "ms" off "250ms" and gives us the number 250
+  // 3. parseInt automatically strips the "ms" off "250ms"
   const frameDelay = parseInt(rawSpeed, 10);
 
   // Wait a brief moment after the page loads before starting
@@ -179,13 +296,13 @@ async function playStartupAnimation() {
   // Type "camera" in (left to right)
   for (const frame of inFrames) {
     captureText.innerText = frame;
-    await delay(frameDelay); // dynamically uses your CSS engine!
+    await delay(frameDelay);
   }
 
   // Erase "camera" out (left to right)
   for (const frame of outFrames) {
     captureText.innerText = frame;
-    await delay(frameDelay); // dynamically uses your CSS engine!
+    await delay(frameDelay);
   }
   captureText.style.opacity = "0.6";
 }
