@@ -9,13 +9,32 @@
         />
         <title>the camera of oo1 studio</title>
         <link rel="stylesheet" href="https://core.oo1.studio/outsync.css" />
+        <style>
+            /* When the screen aspect ratio is close to a 1:1 square, overlay buttons on top of the viewfinder */
+            @media (min-aspect-ratio: 3/4) and (max-aspect-ratio: 4/3) {
+                #buttons-container {
+                    position: absolute !important;
+                    bottom: calc(var(--padding) + 1.5rem) !important;
+                    left: 50% !important;
+                    transform: translateX(-50%) !important;
+                    width: auto !important;
+                    height: auto !important;
+                    z-index: 30 !important;
+                    flex-direction: row !important;
+                }
+                #viewfinder {
+                    width: 100% !important;
+                    height: 100% !important;
+                }
+            }
+        </style>
     </head>
     <body
         class="bg-white text-black dark:bg-black dark:text-white m-0 overflow-hidden select-none font-mono"
     >
         <!-- Main full-screen container -->
         <main
-            class="w-dvw h-dvh p-(--padding) flex flex-col landscape:flex-row items-center rounded(--layer-corner-radius)"
+            class="w-dvw h-dvh p-(--padding) flex flex-col landscape:flex-row items-center rounded(--layer-corner-radius) relative"
         >
             <!-- Main Viewfinder -->
             <video
@@ -29,6 +48,7 @@
 
             <!-- Buttons container -->
             <div
+                id="buttons-container"
                 class="w-full landscape:h-full landscape:w-auto flex flex-row gap-4 items-center justify-center flex-1"
             >
                 <!-- Capture Button -->
@@ -64,13 +84,22 @@
                     >
                 </div>
 
-                <!-- Flip Button (Updated to border-2 to match visual weight) -->
+                <!-- Flip Button -->
                 <div
                     id="flip-button"
                     style="--layer: 1"
                     class="cursor-pointer border-2 border-black/40 dark:border-white/60 rounded-(--layer-corner-radius) h-(--layer-height) px-(--layer-corner-radius) flex items-center justify-center transition-all duration-150 active:scale-90"
                 >
                     <span class="pointer-events-none opacity-60">flip</span>
+                </div>
+
+                <!-- Swap Camera Button (Hidden by default, shown if > 1 camera) -->
+                <div
+                    id="swap-camera-button"
+                    style="--layer: 1"
+                    class="hidden cursor-pointer border-2 border-black/40 dark:border-white/60 rounded-(--layer-corner-radius) h-(--layer-height) px-(--layer-corner-radius) flex items-center justify-center transition-all duration-150 active:scale-90"
+                >
+                    <span class="pointer-events-none opacity-60">1/1</span>
                 </div>
             </div>
         </main>

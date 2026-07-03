@@ -8,6 +8,9 @@ const captureButton = document.getElementById(
   "capture-button",
 ) as HTMLDivElement;
 const flipButton = document.getElementById("flip-button") as HTMLDivElement;
+const swapCameraButton = document.getElementById(
+  "swap-camera-button",
+) as HTMLDivElement;
 
 const buttonViewfinder = document.getElementById(
   "button-viewfinder",
@@ -22,6 +25,10 @@ let isMirrored = false;
 let rawStream: MediaStream | null = null;
 let canvasStream: MediaStream | null = null;
 let animationFrameId: number | null = null;
+
+// Camera selection state
+let videoDevices: MediaDeviceInfo[] = [];
+let currentCameraIndex = 0;
 
 // Hidden elements for capturing and processing the stream
 const rawVideo = document.createElement("video");
@@ -98,16 +105,65 @@ function drawLoop() {
   animationFrameId = requestAnimationFrame(drawLoop);
 }
 
+// --- Query available camera devices ---
+async function updateCameraList() {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    videoDevices = devices.filter((d) => d.kind === "videoinput");
+
+    if (videoDevices.length > 1) {
+      swapCameraButton.classList.remove("hidden");
+
+      // Match the currently running track's ID to keep the active index accurate
+      const activeTrack = rawStream?.getVideoTracks()[0];
+      if (activeTrack) {
+        const settings = activeTrack.getSettings();
+        if (settings.deviceId) {
+          const index = videoDevices.findIndex(
+            (d) => d.deviceId === settings.deviceId,
+          );
+          if (index !== -1) {
+            currentCameraIndex = index;
+          }
+        }
+      }
+
+      updateSwapButtonText();
+    } else {
+      swapCameraButton.classList.add("hidden");
+    }
+  } catch (err) {
+    console.error("Failed to enumerate devices:", err);
+  }
+}
+
+function updateSwapButtonText() {
+  const swapText = swapCameraButton.querySelector("span");
+  if (swapText) {
+    swapText.innerText = `${currentCameraIndex + 1}/${videoDevices.length}`;
+  }
+}
+
 async function startCamera() {
   // Always ensure the old stream is completely dead before starting a new one
   stopCamera();
 
   try {
+    const videoConstraints: any = {
+      aspectRatio: 1 / 1,
+    };
+
+    // If a specific camera device is selected, target it directly
+    if (videoDevices.length > 0 && videoDevices[currentCameraIndex]) {
+      videoConstraints.deviceId = {
+        exact: videoDevices[currentCameraIndex].deviceId,
+      };
+    } else {
+      videoConstraints.facingMode = "environment";
+    }
+
     rawStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: "environment",
-        aspectRatio: 1 / 1,
-      },
+      video: videoConstraints,
       audio: false,
     });
 
@@ -124,6 +180,9 @@ async function startCamera() {
     // Apply the perfectly square stream to the viewfinders
     viewfinder.srcObject = canvasStream;
     buttonViewfinder.srcObject = canvasStream;
+
+    // Discover the real device hardware list now that permission is active
+    await updateCameraList();
   } catch (err: any) {
     console.error("Camera error:", err);
     if (err.name === "NotAllowedError" || err.name === "NotReadableError") {
@@ -224,7 +283,6 @@ async function scrambleTransition(
     const progress = step / steps;
 
     for (let i = 0; i < maxLength; i++) {
-      // Gradually lock in correct characters from left to right as the animation progresses
       const isResolved = i / maxLength < progress;
 
       if (isResolved) {
@@ -232,7 +290,6 @@ async function scrambleTransition(
           result += targetText[i];
         }
       } else {
-        // Scramble phase: insert random lowercase letters/dash
         result += glyphs[Math.floor(Math.random() * glyphs.length)];
       }
     }
@@ -260,6 +317,18 @@ flipButton.addEventListener("pointerup", async () => {
   }
 });
 
+// Swap camera action
+swapCameraButton.addEventListener("pointerup", async () => {
+  if (videoDevices.length <= 1) return;
+
+  // Cycle index
+  currentCameraIndex = (currentCameraIndex + 1) % videoDevices.length;
+  updateSwapButtonText();
+
+  // Re-start stream with the selected device ID
+  await startCamera();
+});
+
 // Attach capture events
 captureButton.addEventListener("pointerup", takePicture);
 viewfinder.addEventListener("pointerup", takePicture);
@@ -279,15 +348,11 @@ async function playStartupAnimation() {
   const delay = (ms: number) =>
     new Promise((resolve) => setTimeout(resolve, ms));
 
-  // 1. Read the styles currently applied to the capture button
   const buttonStyles = getComputedStyle(captureButton);
-
-  // 2. Extract `--animation-speed`
   const rawSpeed =
     buttonStyles.getPropertyValue("--animation-speed").trim() || "80";
 
   console.log(`rawspeed ${rawSpeed}`);
-  // 3. parseInt automatically strips the "ms" off "250ms"
   const frameDelay = parseInt(rawSpeed, 10);
 
   // Wait a brief moment after the page loads before starting
