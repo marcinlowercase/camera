@@ -26,6 +26,9 @@ let rawStream: MediaStream | null = null;
 let canvasStream: MediaStream | null = null;
 let animationFrameId: number | null = null;
 
+// Thread safe lock for camera transitions
+let isCameraStarting = false;
+
 // Camera selection state
 let videoDevices: MediaDeviceInfo[] = [];
 let currentCameraIndex = 0;
@@ -145,6 +148,12 @@ function updateSwapButtonText() {
 }
 
 async function startCamera() {
+  if (isCameraStarting) return;
+  isCameraStarting = true;
+
+  // Visual feedback disabling inputs during the cycle
+  swapCameraButton.classList.add("opacity-40", "pointer-events-none");
+
   // Always ensure the old stream is completely dead before starting a new one
   stopCamera();
 
@@ -190,6 +199,9 @@ async function startCamera() {
     } else {
       alert("Could not start camera. Error: " + err.message);
     }
+  } finally {
+    isCameraStarting = false;
+    swapCameraButton.classList.remove("opacity-40", "pointer-events-none");
   }
 }
 
@@ -319,7 +331,7 @@ flipButton.addEventListener("pointerup", async () => {
 
 // Swap camera action
 swapCameraButton.addEventListener("pointerup", async () => {
-  if (videoDevices.length <= 1) return;
+  if (videoDevices.length <= 1 || isCameraStarting) return;
 
   // Cycle index
   currentCameraIndex = (currentCameraIndex + 1) % videoDevices.length;
