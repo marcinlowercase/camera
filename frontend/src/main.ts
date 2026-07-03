@@ -143,6 +143,11 @@ async function updateCameraList() {
     }
   } catch (err) {
     console.error("Failed to enumerate devices:", err);
+    // On failure, fall back to "1/1"
+    const swapText = swapCameraButton.querySelector("span");
+    if (swapText) {
+      swapText.innerText = "1/1";
+    }
   }
 }
 
