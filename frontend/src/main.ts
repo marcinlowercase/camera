@@ -1,39 +1,65 @@
 import "./style.css";
-// IMPORT the sound. Vite will magically turn this variable into a working /assets/... path!
+// IMPORT the sound. Vite will turn this variable into a working /assets/... path
 import shutterAudioUrl from "./assets/shutter.mp3";
+
+// --- Global Type Declaration for the new outsync standard ---
+declare global {
+  interface Window {
+    outsync?: {
+      storage: {
+        save: (
+          filename: string,
+          base64Data: string,
+          mimeType: string,
+          folder: string
+        ) => Promise<string>;
+      };
+      haptic: {
+        vibrate: (
+          type:
+            | "click"
+            | "tick"
+            | "heavy"
+            | "double_click"
+            | "success"
+            | "error"
+            | "rise"
+            | "celebration"
+            | "warning"
+        ) => Promise<string>;
+      };
+      audio: {
+        play: (sound: "beep" | "success" | "error" | "notification") => Promise<string>;
+      };
+    };
+  }
+}
 
 const viewfinder = document.getElementById("viewfinder") as HTMLVideoElement;
 const canvas = document.getElementById("photo-canvas") as HTMLCanvasElement;
-const captureButton = document.getElementById(
-  "capture-button",
-) as HTMLDivElement;
+const captureButton = document.getElementById("capture-button") as HTMLDivElement;
 const flipButton = document.getElementById("flip-button") as HTMLDivElement;
-const swapCameraButton = document.getElementById(
-  "swap-camera-button",
-) as HTMLDivElement;
-
-const buttonViewfinder = document.getElementById(
-  "button-viewfinder",
-) as HTMLVideoElement;
+const swapCameraButton = document.getElementById("swap-camera-button") as HTMLDivElement;
+const buttonViewfinder = document.getElementById("button-viewfinder") as HTMLVideoElement;
 const captureText = document.getElementById("capture-text") as HTMLSpanElement;
 
-// Pass the Vite-processed URL into the Audio object
+// Fallback HTML5 Audio instance
 const shutterSound = new Audio(shutterAudioUrl);
 
-// Keep track of states
+// State tracking
 let isMirrored = false;
 let rawStream: MediaStream | null = null;
 let canvasStream: MediaStream | null = null;
 let animationFrameId: number | null = null;
 
-// Thread safe lock for camera transitions
+// Lock for camera transitions
 let isCameraStarting = false;
 
-// Camera selection state
+// Device enumeration state
 let videoDevices: MediaDeviceInfo[] = [];
 let currentCameraIndex = 0;
 
-// Hidden elements for capturing and processing the stream
+// Offscreen elements for square cropping and stream rendering
 const rawVideo = document.createElement("video");
 rawVideo.muted = true;
 rawVideo.playsInline = true;
@@ -41,7 +67,7 @@ rawVideo.playsInline = true;
 const streamCanvas = document.createElement("canvas");
 const streamCtx = streamCanvas.getContext("2d");
 
-// --- Helper to fully stop the camera hardware and processing loop ---
+// --- Helper to release camera hardware and cancel render loops ---
 function stopCamera() {
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId);
@@ -74,7 +100,6 @@ function drawLoop() {
       const cropX = (rawW - squareSize) / 2;
       const cropY = (rawH - squareSize) / 2;
 
-      // Ensure stream canvas dimensions match the cropped square size
       if (streamCanvas.width !== squareSize) {
         streamCanvas.width = squareSize;
         streamCanvas.height = squareSize;
@@ -85,7 +110,6 @@ function drawLoop() {
         streamCtx.save();
 
         if (isMirrored) {
-          // Draw the stream mirrored
           streamCtx.translate(squareSize, 0);
           streamCtx.scale(-1, 1);
         }
@@ -99,7 +123,7 @@ function drawLoop() {
           0,
           0,
           squareSize,
-          squareSize,
+          squareSize
         );
         streamCtx.restore();
       }
@@ -115,26 +139,20 @@ async function updateCameraList() {
     videoDevices = devices.filter((d) => d.kind === "videoinput");
 
     if (videoDevices.length > 1) {
-      // Re-enable in case it was previously disabled
       swapCameraButton.classList.remove("opacity-40", "pointer-events-none");
 
-      // Match the currently running track's ID to keep the active index accurate
       const activeTrack = rawStream?.getVideoTracks()[0];
       if (activeTrack) {
         const settings = activeTrack.getSettings();
         if (settings.deviceId) {
-          const index = videoDevices.findIndex(
-            (d) => d.deviceId === settings.deviceId,
-          );
+          const index = videoDevices.findIndex((d) => d.deviceId === settings.deviceId);
           if (index !== -1) {
             currentCameraIndex = index;
           }
         }
       }
-
       updateSwapButtonText();
     } else {
-      // Exactly 1 or 0 cameras available - keep visible but disabled
       swapCameraButton.classList.add("opacity-40", "pointer-events-none");
       const swapText = swapCameraButton.querySelector("span");
       if (swapText) {
@@ -143,7 +161,6 @@ async function updateCameraList() {
     }
   } catch (err) {
     console.error("Failed to enumerate devices:", err);
-    // On failure, fall back to "1/1"
     const swapText = swapCameraButton.querySelector("span");
     if (swapText) {
       swapText.innerText = "1/1";
@@ -162,18 +179,14 @@ async function startCamera() {
   if (isCameraStarting) return;
   isCameraStarting = true;
 
-  // Visual feedback disabling inputs during the cycle
   swapCameraButton.classList.add("opacity-40", "pointer-events-none");
-
-  // Always ensure the old stream is completely dead before starting a new one
   stopCamera();
 
   try {
-    const videoConstraints: any = {
+    const videoConstraints: MediaTrackConstraints = {
       aspectRatio: 1 / 1,
     };
 
-    // If a specific camera device is selected, target it directly
     if (videoDevices.length > 0 && videoDevices[currentCameraIndex]) {
       videoConstraints.deviceId = {
         exact: videoDevices[currentCameraIndex].deviceId,
@@ -190,18 +203,14 @@ async function startCamera() {
     rawVideo.srcObject = rawStream;
     await rawVideo.play();
 
-    // Start running the loop that draws frames on our helper canvas
     drawLoop();
 
-    // Capture the 1:1 stream from our canvas at 30fps
     // @ts-ignore
     canvasStream = streamCanvas.captureStream(30);
 
-    // Apply the perfectly square stream to the viewfinders
     viewfinder.srcObject = canvasStream;
     buttonViewfinder.srcObject = canvasStream;
 
-    // Discover the real device hardware list now that permission is active
     await updateCameraList();
   } catch (err: any) {
     console.error("Camera error:", err);
@@ -212,7 +221,6 @@ async function startCamera() {
     }
   } finally {
     isCameraStarting = false;
-    // Only re-enable the button if there are actually multiple cameras to swap
     if (videoDevices.length > 1) {
       swapCameraButton.classList.remove("opacity-40", "pointer-events-none");
     } else {
@@ -221,31 +229,31 @@ async function startCamera() {
   }
 }
 
-// --- Listen for the user swiping away or returning to the app ---
+// Lifecycle listeners: Pause stream when backgrounded to preserve device resources
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
-    // The user came back! Restart the camera hardware.
     startCamera();
   } else {
-    // The user swiped home. Turn off the camera hardware to save battery and drop the lock.
     stopCamera();
   }
 });
 
 async function takePicture() {
-  // Ensure the stream is rendering
   if (!streamCanvas.width || !streamCanvas.height) {
     console.warn("Camera not ready yet");
     return;
   }
 
-  // Play the sound immediately
-  shutterSound.currentTime = 0;
-  shutterSound
-    .play()
-    .catch((err) => console.warn("Failed to play sound:", err));
+  // Native outsync Haptic Feedback
+  if (window.outsync?.haptic) {
+    window.outsync.haptic.vibrate("click");
+  }
 
-  // Visual "shutter" flash effect
+  // Play shutter sound
+  shutterSound.currentTime = 0;
+  shutterSound.play().catch((err) => console.warn("Failed to play sound:", err));
+
+  // Shutter flash effect
   viewfinder.style.opacity = "0.3";
   setTimeout(() => (viewfinder.style.opacity = "1"), 150);
 
@@ -255,8 +263,6 @@ async function takePicture() {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
-  // The streamCanvas is already running live cropping and mirroring.
-  // Drawing it directly keeps the snapshot exactly identical to the preview.
   ctx.drawImage(streamCanvas, 0, 0);
 
   const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
@@ -270,21 +276,23 @@ async function takePicture() {
 
   const filename = `picture_taken_at_${yyyy}${mm}${dd}_${hh}${min}${ss}.jpg`;
 
-  if (typeof (window as any).saveFileToAndroid === "function") {
+  // Standard outsync storage API call
+  if (window.outsync?.storage?.save) {
     try {
-      const result = await (window as any).saveFileToAndroid(
+      const result = await window.outsync.storage.save(
         filename,
         dataUrl,
         "image/jpeg",
-        "PICTURES",
+        "PICTURES"
       );
-      if (result !== "SUCCESS")
-        console.error("App failed to save photo:", result);
+      if (result !== "SUCCESS") {
+        console.error("outsync failed to save photo:", result);
+      }
     } catch (err) {
-      console.error("Bridge error:", err);
+      console.error("outsync bridge error:", err);
     }
   } else {
-    // Standard Browser Fallback
+    // Standard Browser Fallback (Anchor Download)
     const link = document.createElement("a");
     link.download = filename;
     link.href = dataUrl;
@@ -292,11 +300,11 @@ async function takePicture() {
   }
 }
 
-// --- Text Scrambler Animation Helper for Flip Button ---
+// Scramble text animation for buttons
 async function scrambleTransition(
   element: HTMLElement,
   targetText: string,
-  durationMs: number = 300,
+  durationMs: number = 300
 ) {
   const glyphs = "abcdefghijklmnopqrstuvwxyz-";
   const startLength = element.innerText.length;
@@ -312,7 +320,6 @@ async function scrambleTransition(
 
     for (let i = 0; i < maxLength; i++) {
       const isResolved = i / maxLength < progress;
-
       if (isResolved) {
         if (i < targetLength) {
           result += targetText[i];
@@ -327,8 +334,12 @@ async function scrambleTransition(
   element.innerText = targetText;
 }
 
-// Flip action: toggles state, updates button style, and runs text scramble animation
+// Flip camera preview
 flipButton.addEventListener("pointerup", async () => {
+  if (window.outsync?.haptic) {
+    window.outsync.haptic.vibrate("tick");
+  }
+
   isMirrored = !isMirrored;
   const flipText = flipButton.querySelector("span");
 
@@ -343,15 +354,17 @@ flipButton.addEventListener("pointerup", async () => {
   }
 });
 
-// Swap camera action
+// Swap active camera sensor
 swapCameraButton.addEventListener("pointerup", async () => {
   if (videoDevices.length <= 1 || isCameraStarting) return;
 
-  // Cycle index
+  if (window.outsync?.haptic) {
+    window.outsync.haptic.vibrate("tick");
+  }
+
   currentCameraIndex = (currentCameraIndex + 1) % videoDevices.length;
   updateSwapButtonText();
 
-  // Re-start stream with the selected device ID
   await startCamera();
 });
 
@@ -359,38 +372,25 @@ swapCameraButton.addEventListener("pointerup", async () => {
 captureButton.addEventListener("pointerup", takePicture);
 viewfinder.addEventListener("pointerup", takePicture);
 
-// --- The Original Text Frame-by-Frame Animation Function for Camera Button ---
+// Startup text animation
 async function playStartupAnimation() {
   captureText.style.opacity = "1";
   const inFrames = ["c-----", "ca----", "cam---", "came--", "camer-", "camera"];
-  const outFrames = [
-    "-amera",
-    "--mera",
-    "---era",
-    "----ra",
-    "-----a",
-    "------",
-  ];
-  const delay = (ms: number) =>
-    new Promise((resolve) => setTimeout(resolve, ms));
+  const outFrames = ["-amera", "--mera", "---era", "----ra", "-----a", "------"];
+  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const buttonStyles = getComputedStyle(captureButton);
-  const rawSpeed =
-    buttonStyles.getPropertyValue("--animation-speed").trim() || "80";
+  const rawSpeed = buttonStyles.getPropertyValue("--animation-speed").trim() || "80";
 
-  console.log(`rawspeed ${rawSpeed}`);
   const frameDelay = parseInt(rawSpeed, 10);
 
-  // Wait a brief moment after the page loads before starting
   await delay(400);
 
-  // Type "camera" in (left to right)
   for (const frame of inFrames) {
     captureText.innerText = frame;
     await delay(frameDelay);
   }
 
-  // Erase "camera" out (left to right)
   for (const frame of outFrames) {
     captureText.innerText = frame;
     await delay(frameDelay);
@@ -398,6 +398,6 @@ async function playStartupAnimation() {
   captureText.style.opacity = "0.6";
 }
 
-// Boot up the camera and trigger the animation when the page first loads
+// Boot up
 startCamera();
 playStartupAnimation();
