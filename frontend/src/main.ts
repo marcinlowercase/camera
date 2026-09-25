@@ -276,28 +276,48 @@ async function takePicture() {
 
   const filename = `picture_taken_at_${yyyy}${mm}${dd}_${hh}${min}${ss}.jpg`;
 
-  // Standard outsync storage API call
-  if (window.outsync?.storage?.save) {
-    try {
-      const result = await window.outsync.storage.save(
-        filename,
-        dataUrl,
-        "image/jpeg",
-        "PICTURES"
-      );
-      if (result !== "SUCCESS") {
-        console.error("outsync failed to save photo:", result);
+  // Helper for web download fallback
+    const triggerBrowserDownload = () => {
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = dataUrl;
+      link.click();
+    };
+
+    // Helper for denial visual + haptic feedback
+    const handleDenial = (reason: string) => {
+      console.warn("Storage permission denied or failed:", reason);
+      if (window.outsync?.haptic) {
+        window.outsync.haptic.vibrate("error");
       }
-    } catch (err) {
-      console.error("outsync bridge error:", err);
+      // Flash button or text to notify user
+      scrambleTransition(captureText, "denied", 250).then(() => {
+        setTimeout(() => scrambleTransition(captureText, "camera", 250), 1200);
+      });
+
+      // Fall back to standard browser download prompt so photo is not lost
+      triggerBrowserDownload();
+    };
+
+    if (window.outsync?.storage?.save) {
+      try {
+        const result = await window.outsync.storage.save(
+          filename,
+          dataUrl,
+          "image/jpeg",
+          "PICTURES"
+        );
+        if (result === "SUCCESS") {
+          if (window.outsync?.haptic) window.outsync.haptic.vibrate("success");
+        } else {
+          handleDenial(result);
+        }
+      } catch (err: any) {
+        handleDenial(err.message || "ERROR_PERMISSION_DENIED");
+      }
+    } else {
+      triggerBrowserDownload();
     }
-  } else {
-    // Standard Browser Fallback (Anchor Download)
-    const link = document.createElement("a");
-    link.download = filename;
-    link.href = dataUrl;
-    link.click();
-  }
 }
 
 // Scramble text animation for buttons
